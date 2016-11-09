@@ -1,0 +1,20 @@
+<dom-module id="do-data">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <h4>Dissolved Oxygen: {{data}}</h4>
+  </template>
+  <script>
+    Polymer({
+
+      is: 'do-data',
+
+      properties: {
+        data: Number
+      }
+    });
+  </script>
+</dom-module>

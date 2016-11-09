@@ -1,12 +1,16 @@
 <link rel="import" href="../polymer/polymer.html">
-
+<link rel="import" href="../current-weather/dist/current-weather.html">
+<link rel="import" href="./src/ph.html">
+<link rel="import" href="./src/ec.html">
+<link rel="import" href="./src/temperature.html">
+<link rel="import" href="./src/humidity.html">
+<link rel="import" href="./src/dissolved-oxygen.html">
 <!--
 `Grow-Elements`
 A set of web components for useful for growing things.
 
 @demo demo/index.html 
 -->
-
 <dom-module id="Grow-Elements">
   <template>
     <style>
@@ -15,6 +19,12 @@ A set of web components for useful for growing things.
       }
     </style>
     <h2>Hello [[prop1]]</h2>
+    <current-weather lat="37.871593" lon="-122.272747" units="metric" app-id="ac9326c8de0c2620491ae3e00dc61403" wind suntimes minmax conditiontext chump name></current-weather>
+    <ph-data data="{{phData}}"></ph-data>
+    <ec-data data="{{ecData}}"></ec-data>
+    <do-data data="{{doData}}"></do-data>
+    <temp-data unit="celcius" data="{{tempData}}"></temp-data>
+    <humidity-data data="{{humidityData}}"></humidity-data>
   </template>
 
   <script>
@@ -27,6 +37,26 @@ A set of web components for useful for growing things.
           type: String,
           value: 'Grow-Elements',
         },
+        phData: {
+          type: Number,
+          value: 0
+        },
+        ecData: {
+          type: Number,
+          value: 0
+        },
+        doData: {
+          type: Number,
+          value: 0
+        },
+        tempData: {
+          type: Number,
+          value: 0     
+        },
+        humidityData: {
+          type: Number,
+          value: 0
+        }
       },
 
     });
