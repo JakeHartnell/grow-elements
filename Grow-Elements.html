@@ -1,0 +1,34 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<!--
+`Grow-Elements`
+A set of web components for useful for growing things.
+
+@demo demo/index.html 
+-->
+
+<dom-module id="Grow-Elements">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <h2>Hello [[prop1]]</h2>
+  </template>
+
+  <script>
+    Polymer({
+
+      is: 'Grow-Elements',
+
+      properties: {
+        prop1: {
+          type: String,
+          value: 'Grow-Elements',
+        },
+      },
+
+    });
+  </script>
+</dom-module>
