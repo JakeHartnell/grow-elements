@@ -1,0 +1,109 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<!--
+`ph-indicator`
+Indicator for pH
+@demo demo/index.html
+-->
+
+<dom-module id="ph-gauge">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <h2>Hello [[name]]</h2>
+    <svg id="ph"></svg>
+  </template>
+  <script src="../d3/d3.min.js"></script>
+
+  <script>
+    Polymer({
+      is: 'ph-gauge',
+      properties: {
+        name: {
+          type: String,
+          value: 'pH Indicator'
+        },
+        ph: {
+          type: Number,
+          value: 6.7
+        }
+      },
+      createElements: function() {
+        var width = 350;
+        var height = 350;
+        this.svg = d3.select(this.$.ph)
+          .attr( "width", width )
+          .attr( "height", height );
+        this.arc = d3.arc()
+          .innerRadius(60)
+          .outerRadius(120)
+          .cornerRadius(1)
+          .padAngle(0);
+        this.textArc = d3.arc()
+          .outerRadius(120);
+        this.color = ["#2776d7", "#7dace7", "#e9f1fb", "#fff", "#fbeae9", "#e7827d", "#d73027"];
+        this.tempScale = d3.scaleLinear().domain([0, 14]).range([0, 180]);
+      },
+      drawChart: function () {
+        var self = this;
+        var gauge = self.makeGaugeData();
+        var temp = self.getData();
+        // var ticks = self.makeTicks();
+        self.pie = d3.pie()
+          .startAngle( -(Math.PI) / 2 )
+          .endAngle( (Math.PI) / 2 )
+          .value(d => d);
+        self.groupArcs = self.svg.append('g');
+        self.arcs = self.groupArcs.selectAll( '.arc' )
+          .data(self.pie(gauge)) // pass arc data
+          .enter()
+          .append('path')
+          .attr("transform", "translate(200,200)")
+          .attr("d", self.arc)
+          .attr("stroke", "#000")
+          .attr("stroke-width", "1px")
+          .style("fill", () => "#fff");
+        // self.ticks = self.groupArcs.selectAll( '.tick' )
+        //   .data(self.pie(gauge)) // pass arc data
+        //   .enter()
+        //   .append('textPath')
+        //   .attr("dx", 5)
+        //   .attr("dy", -5)
+        //   .text((d, i) => (i + 1) * 10);
+        self.needle = self.svg.selectAll(".needle")
+          .data(temp)
+          .enter()
+          .append('line')
+          .attr("x1", -30)
+          .attr("x2", -115)
+          .attr("y1", 0)
+          .attr("y2", 0)
+          .style("stroke", "black")
+          .attr( "transform", d => ` translate(200,200) rotate(${this.tempScale(d)})`);
+        self.tempText = self.svg.append('text')
+          .attr('class', 'temp-text')
+          .style('font-size', '32px')
+          .attr("transform", d => "translate(188, 200)")
+          .text(() => parseFloat(temp, 10).toFixed(1).toString());
+      },
+      makeGaugeData: function() {
+        return [1];
+      },
+      // makeTicks: function() {
+      //   return Array.apply(null, { length: 10 }).map(Number.call, Number).map(num => (num + 1) * 10);
+      // },
+      getData: function() {
+        // This is the getter for the data
+        return [this.ph];
+      },
+      ready: function () {
+        this.createElements();
+        this.drawChart();
+        // this.getData();
+      },
+    });
+  </script>
+</dom-module>
