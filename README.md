@@ -1,6 +1,19 @@
-# \<Grow-Elements\>
+# Grow elements
 
-A set of web components for useful for growing things.
+A set of web components for useful for growing things. 
+
+Includes gauges for common sensors such as:
+
+* Temperature
+* Humidity
+* Light
+* pH
+* Conductivity
+* Dissolved oxygen
+* CO2
+
+We might also explore addding components useful for outdoor growing, such as this [weather component](https://github.com/dotch/current-weather).
+
 
 ## Install the Polymer-CLI
 
