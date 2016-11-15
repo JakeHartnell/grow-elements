@@ -13,7 +13,6 @@ Indicator for pH
         display: block;
       }
     </style>
-    <h2>Hello [[name]]</h2>
     <svg id="ph"></svg>
   </template>
   <script src="../d3/d3.min.js"></script>
@@ -21,16 +20,14 @@ Indicator for pH
   <script>
     Polymer({
       is: 'ph-gauge',
+
       properties: {
-        name: {
-          type: String,
-          value: 'pH Indicator'
-        },
         ph: {
           type: Number,
           value: 6.7
         }
       },
+
       createElements: function() {
         var width = 350;
         var height = 350;
@@ -47,6 +44,7 @@ Indicator for pH
         this.color = ["#2776d7", "#7dace7", "#e9f1fb", "#fff", "#fbeae9", "#e7827d", "#d73027"];
         this.tempScale = d3.scaleLinear().domain([0, 14]).range([0, 180]);
       },
+
       drawChart: function () {
         var self = this;
         var gauge = self.makeGaugeData();
@@ -89,16 +87,20 @@ Indicator for pH
           .attr("transform", d => "translate(188, 200)")
           .text(() => parseFloat(temp, 10).toFixed(1).toString());
       },
+
       makeGaugeData: function() {
         return [1];
       },
+
       // makeTicks: function() {
       //   return Array.apply(null, { length: 10 }).map(Number.call, Number).map(num => (num + 1) * 10);
       // },
+
       getData: function() {
         // This is the getter for the data
         return [this.ph];
       },
+
       ready: function () {
         this.createElements();
         this.drawChart();
