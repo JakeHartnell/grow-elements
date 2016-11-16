@@ -1,122 +1,247 @@
-<link rel="import" href="../polymer/polymer.html">
+<link rel='import' href='../polymer/polymer.html'>
 
 <!--
 `temperature-gauge`
-A temperature gauge
+## Temperature gauge
+
+Reusable temperature element
+
+#### Dependencies
+
+- [d3](https://github.com/d3/d3)
+
+#### Caveats
+Only works with Fahrenheit for now
 
 @demo demo/index.html
 -->
-<dom-module id="temperature-gauge">
+
+<dom-module id='temperature-gauge'>
   <template>
     <style>
       :host {
         display: block;
       }
     </style>
-    <svg id="temperature"></svg>
+    <svg id='temperaturegauge'>
+      <defs>
+        <linearGradient id='temp-gradient' x1='0%' y1='0%' x2='100%' y2='0%'>
+          <stop offset='0%' style='stop-color:[[colorCold]];stop-opacity:1' />
+          <stop offset='50%' style='stop-color:#fff;stop-opacity:0' />
+          <stop offset='100%' style='stop-color:[[colorHot]];stop-opacity:1' />
+        </linearGradient>
+      </defs>
+    </svg>
   </template>
-  <script src="../d3/d3.min.js"></script>
+  <script src='../d3/d3.js'></script>
   <script>
     Polymer({
 
       is: 'temperature-gauge',
 
       properties: {
-        data: {
+        /**
+         * Temperature for gauge.
+         *
+         * **Note** If temperature is less than 0°F,
+         * the needle will move beyond the gauge.
+         * Likewise for above 100°F
+         */
+        temperature: {
           type: Number,
-          value: 0 
+          value: 65
         },
+        /**
+         * Temperature unit
+         *
+         * **Note** Type: enum
+         * Possible values: ['F', 'C']
+         *
+         * **TODO** Needs to be implemented
+         */
         unit: {
           type: String,
-          value: 'C'
+          value: 'F',
+          observer: '_enumUnit'
+        },
+        /**
+         * Width of SVG container
+         */
+        chartWidth: {
+          type: Number,
+          value: 300
+        },
+        /**
+         * Height of SVG container
+         */
+        chartHeight: {
+          type: Number,
+          value: 300
+        },
+        /**
+         * Size of the inner radius of the gauge
+         */
+        innerRadius: {
+          type: Number,
+          value: 60
+        },
+        /**
+         * Size of the outer radius of the gauge
+         */
+        outerRadius: {
+          type: Number,
+          value: 120
+        },
+        /**
+         * Center of the gauge on the X-Axis
+         */
+        chartXCenter: {
+          type: Number,
+          value: 150
+        },
+        /**
+         * Center of the gauge on the Y-Axis
+         */
+        chartYCenter: {
+          type: Number,
+          value: 150
+        },
+        /**
+         * Color for the left side of linear gradient
+         */
+        colorCold: {
+          type: String,
+          value: '#7dace7'
+        },
+        /**
+         * Color for the right side of linear gradient
+         */
+        colorHot: {
+          type: String,
+          value: '#e7827d'
         }
       },
-
+      /**
+       * Temperature unit change
+       * @param  {string} a New value passed in
+       * @param  {string} b Old value
+       * @return {string}   Unit for Temperature
+       */
+      _enumUnit: function(a, b) {
+        var validUnits = ['F', 'C'];
+        if (validUnits.indexOf(a) === -1) {
+          // Do not change unit
+          this.unit = b;
+        }
+      },
+      /**
+       * Create elements for charts
+       */
       createElements: function() {
-        var width = 350;
-        var height = 350;
+        // Chart Constants
+        const CORNER_RADIUS = 1;
+        const PAD_ANGLE = 0;
+        const DOMAIN = [0, 100];
+        const RANGE = [-45, 225];
 
-        this.svg = d3.select(this.$.temperature)
-          .attr( "width", width )
-          .attr( "height", height );
+        // SVG Container attributes
+        this.svg = d3.select(this.$.temperaturegauge)
+          .attr('width', this.chartWidth)
+          .attr('height', this.chartHeight);
 
         this.arc = d3.arc()
-          .innerRadius(60)
-          .outerRadius(120)
-          .cornerRadius(1)
-          .padAngle(0);
+          .innerRadius(this.innerRadius)
+          .outerRadius(this.outerRadius)
+          .cornerRadius(CORNER_RADIUS)
+          .padAngle(PAD_ANGLE);
 
         this.textArc = d3.arc()
-          .outerRadius(120);
+          .outerRadius(this.outerRadius);
 
-        this.color = ["#2776d7", "#7dace7", "#e9f1fb", "#fff", "#fbeae9", "#e7827d", "#d73027"];
+        this.chartCenter = `translate(${this.chartXCenter},${this.chartYCenter})`;
 
-        this.tempScale = d3.scaleLinear().domain([0, 100]).range([-45, 225]);
+        this.tempScale = d3.scaleLinear().domain(DOMAIN).range(RANGE);
       },
+      /**
+       * Draws the chart
+       */
       drawChart: function () {
         var self = this;
-        var gauge = self.makeGaugeData();
         var temp = self.getData();
-        // var ticks = self.makeTicks();
 
         self.pie = d3.pie()
           .startAngle( -(3 * Math.PI) / 4 )
           .endAngle( (3 * Math.PI) / 4 )
           .value(d => d);
 
-        self.groupArcs = self.svg.append('g');
+        self.groupArcs = self.svg.append('g')
+          .attr('class', 'arcs-group');
 
         self.arcs = self.groupArcs.selectAll( '.arc' )
-          .data(self.pie(gauge)) // pass arc data
+          .data(self.pie([1])) // Create only one arc
           .enter()
           .append('path')
-          .attr("transform", "translate(200,200)")
-          .attr("d", self.arc)
-          .attr("stroke", "#000")
-          .attr("stroke-width", "1px")
-          .style("fill", (d, i) => {
-            if (i < 1) {
-              return this.color[1];
-            } else if (i > 8) {
-              return this.color[5];
+          .attr('transform', self.chartCenter)
+          .attr('d', self.arc)
+          .attr('stroke', '#000')
+          .attr('stroke-width', '1px')
+          .style('fill', 'url(#temp-gradient)');
+
+        self.groupTicks = self.svg.append('g')
+          .attr('class', 'ticks-group')
+          .selectAll('g')
+          .data(d3.range(-45, 245, 27))
+          .enter()
+          .append('g')
+          .attr('transform', d => `${self.chartCenter} rotate(${-d})`);
+
+        self.groupTicks.append('text')
+          .attr('x', self.outerRadius + 6)
+          .attr('dy', '.35em')
+          .style('text-anchor', d => d < 270 && d > 90 ? 'end' : null)
+          .attr('transform', d => {
+            if (d < 270 && d > 90) {
+              return 'rotate(180 ' + (self.outerRadius + 6) + ',0)';
             } else {
-              return this.color[3];
+              return null;
             }
-          });
+          })
+          .text((d, i) => ((11 - (i + 1)) * 10) + '°F');
 
-        // self.ticks = self.groupArcs.selectAll( '.tick' )
-        //   .data(self.pie(gauge)) // pass arc data
-        //   .enter()
-        //   .append('textPath')
-        //   .attr("dx", 5)
-        //   .attr("dy", -5)
-        //   .text((d, i) => (i + 1) * 10);
+        self.groupTicks.append('line')
+          .attr('x1', self.innerRadius)
+          .attr('x2', self.outerRadius)
+          .attr('y1', 0)
+          .attr('y2', 0)
+          .style('fill', 'none')
+          .style('stroke', '#777')
+          .style('stroke-dasharray', '1,4');
 
-        self.needle = self.svg.selectAll(".needle")
+        self.needle = self.svg.selectAll('.needle')
           .data(temp)
           .enter()
           .append('line')
-          .attr("x1", 0)
-          .attr("x2", -115)
-          .attr("y1", 0)
-          .attr("y2", 0)
-          .style("stroke", "black")
-          .attr( "transform", d => ` translate(200,200) rotate(${this.tempScale(d)})`);
+          .attr('x1', 0)
+          .attr('x2', -115)
+          .attr('y1', 0)
+          .attr('y2', 0)
+          .style('stroke', 'black')
+          .attr('transform', d => `${self.chartCenter} rotate(${self.tempScale(d)})`);
 
         self.tempText = self.svg.append('text')
           .attr('class', 'temp-text')
           .style('font-size', '32px')
-          .attr("transform", d => "translate(175, 200)")
+          .attr('transform', d => `translate(${self.chartXCenter},${self.chartYCenter + self.innerRadius})`)
+          .attr('text-anchor', 'middle')
           .text(() => parseFloat(temp, 10).toFixed(0).toString() + '°F');
       },
-      makeGaugeData: function(N = 10) {
-        return Array.apply(null, { length: N }).map(Number.call, Number).map(() => 1);
-      },
-      // makeTicks: function() {
-      //   return Array.apply(null, { length: 10 }).map(Number.call, Number).map(num => (num + 1) * 10);
-      // },
+      /**
+       * Gets data from properties and places it in an array
+       * @return {array} Tempature Data in a list
+       */
       getData: function() {
-        return[this.get('data')];
+        // This is the getter for the data
+        return [this.temperature];
       },
       ready: function () {
         this.createElements();
