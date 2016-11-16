@@ -49,19 +49,17 @@ Only works with Fahrenheit for now
          */
         temperature: {
           type: Number,
-          value: 65
+          value: 12
         },
         /**
          * Temperature unit
          *
          * **Note** Type: enum
          * Possible values: ['F', 'C']
-         *
-         * **TODO** Needs to be implemented
          */
         unit: {
           type: String,
-          value: 'F',
+          value: 'C',
           observer: '_enumUnit'
         },
         /**
@@ -198,8 +196,13 @@ Only works with Fahrenheit for now
         // Chart Constants
         const CORNER_RADIUS = 1;
         const PAD_ANGLE = 0;
-        const DOMAIN = [0, 100];
         const RANGE = [-45, 225];
+        var DOMAIN; // really is a constant
+        if (this.unit === 'F') {
+          DOMAIN = [0, 100];
+        } else {
+          DOMAIN = [this._fToC(0), this._fToC(100)];
+        }
 
         // SVG Container attributes
         this.svg = d3.select(this.$.temperaturegauge)
@@ -227,8 +230,8 @@ Only works with Fahrenheit for now
         var temp = self.getData();
 
         self.pie = d3.pie()
-          .startAngle( -(3 * Math.PI) / 4 )
-          .endAngle( (3 * Math.PI) / 4 )
+          .startAngle(this._degToRad(-135))
+          .endAngle(this._degToRad(135))
           .value(d => d);
 
         // Draw an outer ring
@@ -275,7 +278,13 @@ Only works with Fahrenheit for now
               return null;
             }
           })
-          .text((d, i) => ((11 - (i + 1)) * 10) + '°F');
+          .text((d, i) => {
+            if (self.unit === 'F') {
+              return ((11 - (i + 1)) * 10) + '°F';
+            } else {
+              return self._fToC((11 - (i + 1)) * 10).toFixed(0) + '°C';
+            }
+          });
 
         self.groupTicks.append('line')
           .attr('x1', self.innerRadius)
@@ -307,7 +316,7 @@ Only works with Fahrenheit for now
           .style('font-size', '32px')
           .attr('transform', d => `translate(${self.chartXCenter},${self.chartYCenter + self.innerRadius})`)
           .attr('text-anchor', 'middle')
-          .text(() => parseFloat(temp, 10).toFixed(0).toString() + '°F');
+          .text(() => parseFloat(temp, 10).toFixed(0).toString() + `°${self.unit}`);
       },
       /**
        * Calculaters pointer path
@@ -332,6 +341,22 @@ Only works with Fahrenheit for now
        */
       _degToRad: function(deg) {
         return deg * Math.PI / 180;
+      },
+      /**
+       * Converts Fahrenheit to Celsius
+       * @param  {number} f Fahrenheit
+       * @return {number}   Celsius
+       */
+      _fToC: function(f) {
+        return (f - 32) / 1.8;
+      },
+      /**
+       * Converts Celsius to Fahrenheit
+       * @param  {number} C Celsius
+       * @return {number}   Fahrenheit
+       */
+      _cToF: function(c) {
+        return (1.8 * c) + 32;
       },
       /**
        * Gets data from properties and places it in an array
