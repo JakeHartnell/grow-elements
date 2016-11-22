@@ -14,8 +14,10 @@ Includes gauges for common sensors such as:
 
 We might also explore addding components useful for outdoor growing, such as this [weather component](https://github.com/dotch/current-weather).
 
+**Current UI:**
+![Current grow-elements ui](https://cloud.githubusercontent.com/assets/521978/20504229/3de347d6-affb-11e6-8002-f7c46a3e981a.png)
 
-## Install the Polymer-CLI
+## Installing
 
 First, make sure you have the [Polymer CLI](https://www.npmjs.com/package/polymer-cli) installed. Then run `polymer serve` to serve your application locally.
 
