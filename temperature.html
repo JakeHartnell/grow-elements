@@ -32,6 +32,13 @@ Only works with Fahrenheit for now
         </linearGradient>
       </defs>
     </svg>
+    <input
+      type="range"
+      id="temperatureRange"
+      min="[[minTemp]]"
+      max="[[maxTemp]]"
+      value="{{temperature::input}}"
+    />
   </template>
   <script src='../d3/d3.min.js'></script>
   <script>
@@ -48,8 +55,9 @@ Only works with Fahrenheit for now
          * Likewise for above 100°F
          */
         temperature: {
-          type: Number,
-          value: 12
+          type: String,
+          value: '12',
+          observer: 'handleTempChange'
         },
         /**
          * Temperature unit
@@ -70,7 +78,7 @@ Only works with Fahrenheit for now
           value: 350
         },
         /**
-         * Height of SVG container
+         * SVG Container Height
          */
         chartHeight: {
           type: Number,
@@ -123,14 +131,14 @@ Only works with Fahrenheit for now
          */
         minTemp: {
           type: Number,
-          value: 0
+          value: 0 // Default for F
         },
         /**
          * Maximum Temperature
          */
         maxTemp: {
           type: Number,
-          value: 1000
+          value: 100 // Default for F
         },
         /**
          * Length of needle
@@ -197,12 +205,14 @@ Only works with Fahrenheit for now
         const CORNER_RADIUS = 1;
         const PAD_ANGLE = 0;
         const RANGE = [-45, 225];
-        var DOMAIN; // really is a constant
-        if (this.unit === 'F') {
-          DOMAIN = [0, 100];
-        } else {
-          DOMAIN = [this._fToC(0), this._fToC(100)];
+
+        // Change min and max temp if Celsius
+        if (this.unit === 'C') {
+          this.minTemp = this._fToC(0);
+          this.maxTemp = this._fToC(100);
         }
+
+        const DOMAIN = [this.minTemp, this.maxTemp];
 
         // SVG Container attributes
         this.svg = d3.select(this.$.temperaturegauge)
@@ -294,29 +304,91 @@ Only works with Fahrenheit for now
           .style('fill', 'none')
           .style('stroke', '#777')
           .style('stroke-dasharray', '1,4');
+        //
+        // self.needleGroup = self.svg.selectAll('.needle-group')
+        //   .data(temp)
+        //   .enter()
+        //   .append('g');
+        //
+        // self.needleGroup.append('circle')
+        //   .attr('cx', self.chartXCenter)
+        //   .attr('cy', self.chartYCenter)
+        //   .attr('r', '5')
+        //   .attr('fill', '#000');
+        //
+        // self.needleGroup.append('path')
+        //   .attr('class', 'needle')
+        //   .attr('d', d => self._calculatePointerPath(d))
+        //   .attr('fill', '#000');
+
+        self.updateNeedleGroup(temp);
+        self.updateTemperatureText(temp);
+      },
+      updateNeedleGroup: function(temp) {
+        var self = this;
+        var t = d3.transition()
+          .duration(100);
 
         self.needleGroup = self.svg.selectAll('.needle-group')
-          .data(temp)
-          .enter()
-          .append('g');
+          .data([temp], d => d)
 
-        self.needleGroup.append('circle')
+        self.needleGroup.exit()
+          .attr('class', 'exit')
+          .transition(t)
+          .style('fill-opacity', 1e-6)
+          .remove();
+
+        // UPDATE old elements present in new data.
+        self.needleGroup.attr('class', 'update')
+          .style('fill-opacity', 1)
+          .transition(t)
+          .style('fill-opacity', 1);
+
+        var needle = self.needleGroup.enter().append('g')
+          .attr('class', 'needle-group');
+
+        needle.append('circle')
           .attr('cx', self.chartXCenter)
           .attr('cy', self.chartYCenter)
           .attr('r', '5')
           .attr('fill', '#000');
 
-        self.needleGroup.append('path')
+        needle.append('path')
           .attr('class', 'needle')
           .attr('d', d => self._calculatePointerPath(d))
           .attr('fill', '#000');
+      },
+      updateTemperatureText: function(temp) {
+        var self = this;
+        var t = d3.transition()
+          .duration(100);
 
-        self.tempText = self.svg.append('text')
+        // JOIN new data with old elements.
+        self.tempText = self.svg.selectAll('.temp-text')
+          .data([temp], d => d)
+
+        // EXIT old elements not present in new data.
+        self.tempText.exit()
+          .attr('class', 'exit')
+          .transition(t)
+          .style('fill-opacity', 1e-6)
+          .remove();
+
+        // UPDATE old elements present in new data.
+        self.tempText.attr('class', 'update')
+          .style('fill-opacity', 1)
+          .transition(t)
+          .style('fill-opacity', 1);
+
+        // ENTER new elements present in new data.
+        self.tempText.enter().append('text')
           .attr('class', 'temp-text')
           .style('font-size', '32px')
           .attr('transform', d => `translate(${self.chartXCenter},${self.chartYCenter + self.innerRadius})`)
           .attr('text-anchor', 'middle')
-          .text(() => parseFloat(temp, 10).toFixed(0).toString() + `°${self.unit}`);
+          .text(() => parseFloat(temp, 10).toFixed(0).toString() + `°${self.unit}`)
+          .transition(t)
+          .style('fill-opacity', 1);
       },
       /**
        * Calculaters pointer path
@@ -364,14 +436,19 @@ Only works with Fahrenheit for now
        */
       getData: function() {
         // This is the getter for the data
-        return [this.temperature];
+        return [parseInt(this.temperature, 10)];
+      },
+      handleTempChange: function(newValue, oldValue) {
+        if (oldValue) {
+          this.updateNeedleGroup(newValue);
+          this.updateTemperatureText(newValue);
+        }
       },
       ready: function () {
         this.createElements();
         this.drawChart();
         // this.getData();
-      },
-
+      }
     });
   </script>
 </dom-module>
