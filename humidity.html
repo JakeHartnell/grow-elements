@@ -1,11 +1,44 @@
-<dom-module id="humidity-gauge">
+<link rel='import' href='../polymer/polymer.html'>
+
+<!--
+`humidity-gauge`
+## Temperature gauge
+
+Reusable humidity element
+
+#### Dependencies
+
+- [d3](https://github.com/d3/d3)
+
+#### Caveats
+Only works with Fahrenheit for now
+
+@demo demo/index.html
+-->
+
+<dom-module id='humidity-gauge'>
   <template>
     <style>
       :host {
         display: block;
       }
     </style>
-    <svg id="humidity"></svg>
+    <svg id='humiditygauge'>
+      <defs>
+        <linearGradient id='humidity-gradient' x1='0%' y1='0%' x2='100%' y2='0%'>
+          <stop offset='0%' style='stop-color:[[colorCold]];stop-opacity:1' />
+          <stop offset='50%' style='stop-color:#fff;stop-opacity:0' />
+          <stop offset='100%' style='stop-color:[[colorHot]];stop-opacity:1' />
+        </linearGradient>
+      </defs>
+    </svg>
+    <input
+      type="range"
+      id="humidityRange"
+      min="[[minHumidity]]"
+      max="[[maxHumidity]]"
+      value="{{humidity::input}}"
+    />
   </template>
   <script src="../d3/d3.min.js"></script>
   <script>
@@ -14,10 +47,25 @@
       is: 'humidity-gauge',
 
       properties: {
+        /**
+         * Humidity for gauge.
+         *
+         * **Note** If humidity is less than 0°F,
+         * the needle will move beyond the gauge.
+         * Likewise for above 100°F
+         */
         humidity: {
-          type: Number,
-          value: 10
+          type: String,
+          value: '12',
+          observer: 'handleHumidityChange'
         },
+        // /**
+        //  * Humidity unit
+        //  */
+        // unit: {
+        //   type: String,
+        //   value: '%',
+        // },
         /**
          * Width of SVG container
          */
@@ -26,7 +74,7 @@
           value: 350
         },
         /**
-         * Height of SVG container
+         * SVG Container Height
          */
         chartHeight: {
           type: Number,
@@ -75,18 +123,18 @@
           value: '#e7827d'
         },
         /**
-         * Minimum Temperature
+         * Minimum Humidity
          */
-        minTemp: {
+        minHumidity: {
           type: Number,
-          value: 0
+          value: 0 // Default for F
         },
         /**
-         * Maximum Temperature
+         * Maximum Humidity
          */
-        maxTemp: {
+        maxHumidity: {
           type: Number,
-          value: 1000
+          value: 100 // Default for F
         },
         /**
          * Length of needle
@@ -132,21 +180,25 @@
           value: 6
         }
       },
-
+      /**
+       * Create elements for charts
+       */
       createElements: function() {
         // Chart Constants
         const CORNER_RADIUS = 1;
         const PAD_ANGLE = 0;
-        const DOMAIN = [0, 100];
+        const MIN_HUMID = 0;
+        const MAX_HUMID = 100;
+        const DOMAIN = [MIN_HUMID, MAX_HUMID];
         const RANGE = [-45, 225];
 
         // SVG Container attributes
-        this.svg = d3.select(this.$.humidity)
+        this.svg = d3.select(this.$.humiditygauge)
           .attr('width', this.chartWidth)
           .attr('height', this.chartHeight);
 
         this.arc = d3.arc()
-          .innerRadius(this.innerRadius)
+          .innerRadius(this.outerRadius)
           .outerRadius(this.outerRadius)
           .cornerRadius(CORNER_RADIUS)
           .padAngle(PAD_ANGLE);
@@ -156,9 +208,11 @@
 
         this.chartCenter = `translate(${this.chartXCenter},${this.chartYCenter})`;
 
-        this.tempScale = d3.scaleLinear().domain(DOMAIN).range(RANGE);
+        this.humidityScale = d3.scaleLinear().domain(DOMAIN).range(RANGE);
       },
-
+      /**
+       * Draws the chart
+       */
       drawChart: function () {
         var self = this;
         var temp = self.getData();
@@ -191,68 +245,169 @@
           .attr('d', self.arc)
           .attr('stroke', '#000')
           .attr('stroke-width', '1px')
+          // .style('fill', 'url(#humidity-gradient)');
           .style('fill', '#fff');
 
-        self.groupTicks = self.svg.append('g')
-          .attr('class', 'ticks-group')
+        self.majorTicks = self.svg.append('g')
+          .attr('class', 'major-ticks-group')
           .selectAll('g')
-          .data(d3.range(-45, 245, 27))
+          .data(d3.range(-45, 245, 27)) // 27 is the degree space every 10
           .enter()
           .append('g')
           .attr('transform', d => `${self.chartCenter} rotate(${-d})`);
 
-        self.groupTicks.append('text')
-          .attr('dx', self.outerRadius + self.tickTextPadding)
-          .attr('dy', '.35em')
-          .style('text-anchor', d => d < 270 && d > 90 ? 'end' : null)
-          .attr('transform', d => {
-            if (d < 270 && d > 90) {
-              return 'rotate(180 ' + (self.outerRadius + 6) + ',0)';
-            } else {
-              return null;
-            }
-          })
-          .text((d, i) => ((11 - (i + 1)) * 10) + '%');
+        // self.majorTicks.append('text')
+        //   .attr('dx', self.outerRadius + self.tickTextPadding)
+        //   .attr('dy', '.35em')
+        //   .style('text-anchor', d => d < 270 && d > 90 ? 'end' : null)
+        //   .attr('transform', d => {
+        //     if (d < 270 && d > 90) {
+        //       return 'rotate(180 ' + (self.outerRadius + 6) + ',0)';
+        //     } else {
+        //       return null;
+        //     }
+        //   })
+        //   .text((d, i) => `${((11 - (i + 1)) * 10)}%`);
 
-        self.groupTicks.append('line')
-          .attr('x1', self.innerRadius)
+        const MAJOR_TICK_LENGTH = 30;
+        const MIDDLE_MINOR_TICK_LENGTH = 20;
+        const MINOR_TICK_LENGTH = 10;
+
+        // Major Ticks
+        self.majorTicks.append('line')
+          .attr('x1', self.outerRadius - MAJOR_TICK_LENGTH)
           .attr('x2', self.outerRadius)
           .attr('y1', 0)
           .attr('y2', 0)
           .style('fill', 'none')
-          .style('stroke', '#777')
-          .style('stroke-dasharray', '1,4');
+          .style('stroke', '#777');
+
+        // Middle Minor Ticks
+        self.middleMinorTicks = self.svg.append('g')
+          .attr('class', 'middle-minor-ticks-group')
+          .selectAll('g')
+          .data(d3.range(-31.5, 231.5, 27)) // 27 is the degree space every 10
+          .enter()
+          .append('g')
+          .attr('transform', d => `${self.chartCenter} rotate(${-d})`);
+
+        self.middleMinorTicks.append('line')
+          .attr('x1', self.outerRadius - MIDDLE_MINOR_TICK_LENGTH)
+          .attr('x2', self.outerRadius)
+          .attr('y1', 0)
+          .attr('y2', 0)
+          .style('fill', 'none')
+          .style('stroke', '#777');
+
+        // Minor Ticks
+        self.minorTicks = self.svg.append('g')
+          .attr('class', 'minor-ticks-group')
+          .selectAll('g')
+          .data(d3.range(-45, 223.4, 2.7)) // 270 is the degree space every 1 percent
+          .enter()
+          .append('g')
+          .attr('transform', d => `${self.chartCenter} rotate(${-d})`);
+
+        self.minorTicks.append('line')
+          .attr('x1', self.outerRadius - MINOR_TICK_LENGTH)
+          .attr('x2', self.outerRadius)
+          .attr('y1', 0)
+          .attr('y2', 0)
+          .style('fill', 'none')
+          .style('stroke', '#777');
+
+        // self.needleGroup = self.svg.selectAll('.needle-group')
+        //   .data(temp)
+        //   .enter()
+        //   .append('g');
+        //
+        // self.needleGroup.append('circle')
+        //   .attr('cx', self.chartXCenter)
+        //   .attr('cy', self.chartYCenter)
+        //   .attr('r', '5')
+        //   .attr('fill', '#000');
+        //
+        // self.needleGroup.append('path')
+        //   .attr('class', 'needle')
+        //   .attr('d', d => self._calculatePointerPath(d))
+        //   .attr('fill', '#000');
+
+        self.updateNeedleGroup(temp);
+        self.updateHumidityText(temp);
+      },
+      updateNeedleGroup: function(temp) {
+        var self = this;
+        var t = d3.transition()
+          .duration(100);
 
         self.needleGroup = self.svg.selectAll('.needle-group')
-          .data(temp)
-          .enter()
-          .append('g');
+          .data([temp], d => d)
 
-        self.needleGroup.append('circle')
+        self.needleGroup.exit()
+          .attr('class', 'exit')
+          .transition(t)
+          .style('fill-opacity', 1e-6)
+          .remove();
+
+        // UPDATE old elements present in new data.
+        self.needleGroup.attr('class', 'update')
+          .style('fill-opacity', 1)
+          .transition(t)
+          .style('fill-opacity', 1);
+
+        var needle = self.needleGroup.enter().append('g')
+          .attr('class', 'needle-group');
+
+        needle.append('circle')
           .attr('cx', self.chartXCenter)
           .attr('cy', self.chartYCenter)
           .attr('r', '5')
           .attr('fill', '#000');
 
-        self.needleGroup.append('path')
+        needle.append('path')
           .attr('class', 'needle')
           .attr('d', d => self._calculatePointerPath(d))
           .attr('fill', '#000');
+      },
+      updateHumidityText: function(temp) {
+        var self = this;
+        var t = d3.transition()
+          .duration(100);
 
-        self.tempText = self.svg.append('text')
+        // JOIN new data with old elements.
+        self.tempText = self.svg.selectAll('.temp-text')
+          .data([temp], d => d)
+
+        // EXIT old elements not present in new data.
+        self.tempText.exit()
+          .attr('class', 'exit')
+          .transition(t)
+          .style('fill-opacity', 1e-6)
+          .remove();
+
+        // UPDATE old elements present in new data.
+        self.tempText.attr('class', 'update')
+          .style('fill-opacity', 1)
+          .transition(t)
+          .style('fill-opacity', 1);
+
+        // ENTER new elements present in new data.
+        self.tempText.enter().append('text')
           .attr('class', 'temp-text')
           .style('font-size', '32px')
           .attr('transform', d => `translate(${self.chartXCenter},${self.chartYCenter + self.innerRadius})`)
           .attr('text-anchor', 'middle')
-          .text(() => parseFloat(temp, 10).toFixed(0).toString() + '%RH');
+          .text(() => `${parseFloat(temp, 10).toFixed(0).toString()}%`)
+          .transition(t)
+          .style('fill-opacity', 1);
       },
       /**
        * Calculaters pointer path
-       * @param  {number} temperature      Temperature
-       * @return {string}                  Path of pointer
+       * @param  {number} humidity      Humidity
+       * @return {string}               Path of pointer
        */
-      _calculatePointerPath: function(temperature) {
-        const THETA_RAD = this._degToRad(this.tempScale(temperature));
+     _calculatePointerPath: function(humidity) {
+        const THETA_RAD = this._degToRad(this.humidityScale(humidity));
         var topX = this.chartXCenter - this.needleLength * Math.cos(THETA_RAD);
         var topY = this.chartYCenter - this.needleLength * Math.sin(THETA_RAD);
         var leftX = this.chartXCenter - this.needleBaseRadius * Math.cos(THETA_RAD - Math.PI / 2);
@@ -270,13 +425,40 @@
       _degToRad: function(deg) {
         return deg * Math.PI / 180;
       },
-      getData: function() {
-        return[this.get('humidity')];
+      /**
+       * Converts Fahrenheit to Celsius
+       * @param  {number} f Fahrenheit
+       * @return {number}   Celsius
+       */
+      _fToC: function(f) {
+        return (f - 32) / 1.8;
       },
-
+      /**
+       * Converts Celsius to Fahrenheit
+       * @param  {number} C Celsius
+       * @return {number}   Fahrenheit
+       */
+      _cToF: function(c) {
+        return (1.8 * c) + 32;
+      },
+      /**
+       * Gets data from properties and places it in an array
+       * @return {array} Tempature Data in a list
+       */
+      getData: function() {
+        // This is the getter for the data
+        return [parseInt(this.humidity, 10)];
+      },
+      handleHumidityChange: function(newValue, oldValue) {
+        if (oldValue) {
+          this.updateNeedleGroup(newValue);
+          this.updateHumidityText(newValue);
+        }
+      },
       ready: function () {
         this.createElements();
         this.drawChart();
+        // this.getData();
       }
     });
   </script>
